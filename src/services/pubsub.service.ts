@@ -1,3 +1,5 @@
+import { PubSub } from '@google-cloud/pubsub';
+
 interface NewRegistrationEmailMessage {
   crmProcess: 'newRegistrationEmail';  // lowercase 'n' as specified
   customer: {
