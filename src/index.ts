@@ -128,7 +128,22 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 // Start server
 const startServer = async () => {
   // Test DB connection before starting server
-  const dbConnected = await testDatabaseConnection();
+  let dbConnected = false;
+  let retries = 0;
+  const maxRetries = 5;
+  const retryInterval = 3000; // 3 seconds
+  
+  // Retry database connection logic
+  while (!dbConnected && retries < maxRetries) {
+    logger.info(`Attempting database connection (attempt ${retries + 1}/${maxRetries})...`);
+    dbConnected = await testDatabaseConnection();
+    
+    if (!dbConnected && retries < maxRetries - 1) {
+      logger.warn(`Database connection failed, retrying in ${retryInterval/1000} seconds...`);
+      await new Promise(resolve => setTimeout(resolve, retryInterval));
+      retries++;
+    }
+  }
   
   // Try to apply migrations if database is connected
   if (dbConnected) {
@@ -140,13 +155,23 @@ const startServer = async () => {
       logger.error('Error during startup database operations', { error });
     }
   } else {
-    logger.warn('Starting server despite database connection issues');
+    logger.warn('Starting server despite database connection issues - will keep retrying in background');
+    
+    // Set up background retry logic
+    setInterval(async () => {
+      const connected = await testDatabaseConnection();
+      if (connected && !dbConnected) {
+        dbConnected = true;
+        process.env.DATABASE_INITIALIZED = 'true';
+        logger.info('Database connection established in background retry');
+      }
+    }, 30000); // Try every 30 seconds
   }
   
   // Start the server
   app.listen(PORT, () => {
     logger.info(`Server running on port ${PORT}`);
-    logger.info(`Database: ${dbConnected ? 'Connected' : 'Disconnected'}`);
+    logger.info(`Database: ${dbConnected ? 'Connected' : 'Will retry in background'}`);
     logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
     logger.info(`Auth service is ready at http://localhost:${PORT}`);
   });
