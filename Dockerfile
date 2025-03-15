@@ -27,12 +27,16 @@ RUN echo '#!/bin/bash' > /app/docker-entrypoint.sh && \
     echo 'set -x' >> /app/docker-entrypoint.sh && \
     echo 'echo "Environment variables:"' >> /app/docker-entrypoint.sh && \
     echo 'env | grep -v PASSWORD | grep -v SECRET | grep -v KEY' >> /app/docker-entrypoint.sh && \
+    echo '# Unset any existing DATABASE_URL' >> /app/docker-entrypoint.sh && \
+    echo 'unset DATABASE_URL' >> /app/docker-entrypoint.sh && \
     echo 'if [ -n "$INSTANCE_CONNECTION_NAME" ]; then' >> /app/docker-entrypoint.sh && \
     echo '  export DATABASE_URL="postgresql://auth-app-user:${DB_PASSWORD}@localhost/auth_db?host=/cloudsql/${INSTANCE_CONNECTION_NAME}"' >> /app/docker-entrypoint.sh && \
     echo '  echo "Using Cloud SQL socket connection"' >> /app/docker-entrypoint.sh && \
     echo 'else' >> /app/docker-entrypoint.sh && \
     echo '  echo "WARNING: INSTANCE_CONNECTION_NAME is not set!"' >> /app/docker-entrypoint.sh && \
     echo 'fi' >> /app/docker-entrypoint.sh && \
+    echo 'echo "Current DATABASE_URL (sanitized):"' >> /app/docker-entrypoint.sh && \
+    echo 'echo "$DATABASE_URL" | sed "s/:[^:]*@/:****@/"' >> /app/docker-entrypoint.sh && \
     echo 'echo "Running prisma generate..."' >> /app/docker-entrypoint.sh && \
     echo 'npx prisma generate' >> /app/docker-entrypoint.sh && \
     echo 'echo "Building application..."' >> /app/docker-entrypoint.sh && \
