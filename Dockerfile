@@ -23,35 +23,23 @@ RUN mkdir -p /var/run/postgresql
 RUN mkdir -p /cloudsql
 
 # Create setup script that runs before the application
-RUN echo '#!/bin/bash
-# Enable debugging to see what is happening
-set -x
-
-# Echo all environment variables for debugging (masked)
-echo "Environment variables:"
-env | grep -v PASSWORD | grep -v SECRET | grep -v KEY
-
-# Generate Prisma client with current DATABASE_URL
-if [ -n "$DATABASE_URL" ]; then
-  SANITIZED_URL=$(echo "$DATABASE_URL" | sed "s/:[^:]*@/:****@/")
-  echo "Generating Prisma client with DATABASE_URL: $SANITIZED_URL"
-else
-  echo "WARNING: DATABASE_URL is not set!"
-fi
-
-# Generate Prisma client
-echo "Running prisma generate..."
-npx prisma generate
-
-# Build the application
-echo "Building application..."
-npm run build
-
-# Start the application with database initialization
-echo "Starting application..."
-exec ./scripts/start.sh
-' > /app/docker-entrypoint.sh \
-&& chmod +x /app/docker-entrypoint.sh
+RUN echo '#!/bin/bash' > /app/docker-entrypoint.sh && \
+    echo 'set -x' >> /app/docker-entrypoint.sh && \
+    echo 'echo "Environment variables:"' >> /app/docker-entrypoint.sh && \
+    echo 'env | grep -v PASSWORD | grep -v SECRET | grep -v KEY' >> /app/docker-entrypoint.sh && \
+    echo 'if [ -n "$DATABASE_URL" ]; then' >> /app/docker-entrypoint.sh && \
+    echo '  SANITIZED_URL=$(echo "$DATABASE_URL" | sed "s/:[^:]*@/:****@/")' >> /app/docker-entrypoint.sh && \
+    echo '  echo "Generating Prisma client with DATABASE_URL: $SANITIZED_URL"' >> /app/docker-entrypoint.sh && \
+    echo 'else' >> /app/docker-entrypoint.sh && \
+    echo '  echo "WARNING: DATABASE_URL is not set!"' >> /app/docker-entrypoint.sh && \
+    echo 'fi' >> /app/docker-entrypoint.sh && \
+    echo 'echo "Running prisma generate..."' >> /app/docker-entrypoint.sh && \
+    echo 'npx prisma generate' >> /app/docker-entrypoint.sh && \
+    echo 'echo "Building application..."' >> /app/docker-entrypoint.sh && \
+    echo 'npm run build' >> /app/docker-entrypoint.sh && \
+    echo 'echo "Starting application..."' >> /app/docker-entrypoint.sh && \
+    echo 'exec ./scripts/start.sh' >> /app/docker-entrypoint.sh && \
+    chmod +x /app/docker-entrypoint.sh
 
 # Expose the port
 EXPOSE 8080
