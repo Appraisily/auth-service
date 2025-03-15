@@ -6,6 +6,9 @@ type TokenPayload = {
   email: string;
 };
 
+// Valid time units for JWT expiration
+type ExpiresIn = string | number;
+
 export const generateToken = (user: User): string => {
   const payload: TokenPayload = {
     userId: user.id,
@@ -14,7 +17,7 @@ export const generateToken = (user: User): string => {
 
   const jwtSecret = process.env.JWT_SECRET || 'fallback-secret';
   const options: SignOptions = {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as ExpiresIn,
   };
 
   return jwt.sign(payload, jwtSecret, options);
@@ -28,7 +31,7 @@ export const generateRefreshToken = (user: User): string => {
 
   const refreshSecret = process.env.REFRESH_TOKEN_SECRET || 'fallback-refresh-secret';
   const options: SignOptions = {
-    expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '30d',
+    expiresIn: (process.env.REFRESH_TOKEN_EXPIRES_IN || '30d') as ExpiresIn,
   };
 
   return jwt.sign(payload, refreshSecret, options);
