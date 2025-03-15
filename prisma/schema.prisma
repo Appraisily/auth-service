@@ -7,8 +7,11 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  // Supports connection via Unix socket with:
-  // postgresql://username:password@localhost:5432/database?host=/var/run/postgresql
+  // Supports Cloud SQL socket connections with:
+  // postgresql://username:password@localhost/database?host=/cloudsql/project:region:instance
+  // 
+  // For local development using Cloud SQL Auth Proxy:
+  // postgresql://username:password@localhost:5432/database
 }
 
 model User {

@@ -11,7 +11,24 @@ import logger from './utils/logger';
 // Load environment variables
 dotenv.config();
 
-// Initialize Prisma client
+// Initialize Prisma client with connection retry logic
+let prismaUrl = process.env.DATABASE_URL;
+
+// Log database connection type (without credentials)
+if (prismaUrl) {
+  if (prismaUrl.includes('host=/cloudsql')) {
+    logger.info('Using Cloud SQL socket connection');
+  } else if (prismaUrl.includes('/var/run/postgresql')) {
+    logger.info('Using Unix socket connection');
+  } else if (prismaUrl.includes('@localhost:')) {
+    logger.info('Using local TCP connection');
+  } else if (prismaUrl.includes('@db:')) {
+    logger.info('Using Docker network connection');
+  } else {
+    logger.info('Using remote TCP connection');
+  }
+}
+
 const prisma = new PrismaClient({
   log: ['error', 'warn'],
 });

@@ -7,39 +7,65 @@ COUNT=0
 
 # Wait for database to be available
 echo "Waiting for database to be available..."
-while [ $COUNT -lt $MAX_RETRIES ]; do
+
+# Function to check connection type and establish connection
+check_database_connection() {
   # Test database connection using the init-db script logic but without running migrations
   if [ -z "$DATABASE_URL" ]; then
     echo "ERROR: DATABASE_URL environment variable is not set"
-    sleep $RETRY_INTERVAL
-    COUNT=$((COUNT+1))
-    continue
+    return 1
   fi
+
+  # Print sanitized DATABASE_URL for debugging
+  SANITIZED_URL=$(echo $DATABASE_URL | sed 's/:[^:]*@/:****@/')
+  echo "Using database URL: $SANITIZED_URL"
 
   # Extract username for connection
   DB_USER=$(echo $DATABASE_URL | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
   
-  # Get socket path from DATABASE_URL or use INSTANCE_CONNECTION_NAME
-  if echo "$DATABASE_URL" | grep -q "host=/cloudsql/"; then
-    SOCKET_PATH=$(echo $DATABASE_URL | sed -n 's/.*host=\([^&]*\).*/\1/p')
-  elif [ -n "$INSTANCE_CONNECTION_NAME" ]; then
-    SOCKET_PATH="/cloudsql/$INSTANCE_CONNECTION_NAME"
+  # Check connection type and connect appropriately
+  
+  # Case 1: Cloud SQL socket
+  if echo "$DATABASE_URL" | grep -q "host=/cloudsql" || [ -n "$INSTANCE_CONNECTION_NAME" ]; then
+    echo "Using Cloud SQL socket connection"
+    
+    # Get socket path from DATABASE_URL or use INSTANCE_CONNECTION_NAME
+    if echo "$DATABASE_URL" | grep -q "host=/cloudsql/"; then
+      SOCKET_PATH=$(echo $DATABASE_URL | sed -n 's/.*host=\([^&]*\).*/\1/p')
+    elif [ -n "$INSTANCE_CONNECTION_NAME" ]; then
+      SOCKET_PATH="/cloudsql/$INSTANCE_CONNECTION_NAME"
+    else
+      echo "ERROR: Neither socket path in DATABASE_URL nor INSTANCE_CONNECTION_NAME is set"
+      return 1
+    fi
+    
+    echo "Trying to connect to Cloud SQL via socket at $SOCKET_PATH"
+    
+    # Try connecting to database using Cloud SQL socket
+    export PGPASSWORD=$(echo $DATABASE_URL | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
+    if psql -h "$SOCKET_PATH" -U $DB_USER -d postgres -c '\l' > /dev/null 2>&1; then
+      echo "Database connection successful via Cloud SQL socket"
+      return 0
+    else
+      echo "Cloud SQL socket database connection failed"
+      return 1
+    fi
+  
+  # Case 2: Docker/TCP connection (for local development)
   else
-    echo "ERROR: Neither socket path in DATABASE_URL nor INSTANCE_CONNECTION_NAME is set"
-    sleep $RETRY_INTERVAL
-    COUNT=$((COUNT+1))
-    continue
+    echo "ERROR: Only Cloud SQL socket connections are supported in production"
+    echo "Please update DATABASE_URL to use Cloud SQL socket format"
+    return 1
   fi
-  
-  echo "Trying to connect to Cloud SQL via socket at $SOCKET_PATH"
-  
-  # Try connecting to database using Cloud SQL socket
-  export PGPASSWORD=$(echo $DATABASE_URL | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
-  if psql -h "$SOCKET_PATH" -U $DB_USER -d postgres -c '\l' > /dev/null 2>&1; then
-    echo "Database connection successful via Cloud SQL socket"
+}
+
+# Try to connect with retries
+while [ $COUNT -lt $MAX_RETRIES ]; do
+  if check_database_connection; then
+    echo "Database connection established successfully"
     break
   else
-    echo "Cloud SQL socket database not available yet, retrying in $RETRY_INTERVAL seconds... (Attempt $COUNT/$MAX_RETRIES)"
+    echo "Database connection failed, retrying in $RETRY_INTERVAL seconds... (Attempt $((COUNT+1))/$MAX_RETRIES)"
     sleep $RETRY_INTERVAL
     COUNT=$((COUNT+1))
   fi
@@ -64,6 +90,10 @@ else
   echo "Running database migrations directly..."
   npx prisma migrate deploy
 fi
+
+# Regenerate Prisma client to ensure it uses the correct DATABASE_URL
+echo "Regenerating Prisma client with current DATABASE_URL..."
+npx prisma generate
 
 # Start the application
 echo "Starting the application..."
