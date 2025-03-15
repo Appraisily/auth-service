@@ -1,9 +1,25 @@
 #!/bin/bash
 # Script to initialize the Cloud SQL database for the auth service
 
+# Enable debugging
+set -x
+
+# Print execution environment
+echo "==== DATABASE INITIALIZATION DEBUG INFO ===="
+echo "Shell: $SHELL"
+echo "Shell version: $BASH_VERSION"
+echo "Current directory: $(pwd)"
+echo "Script path: $0"
+echo "User: $(whoami)"
+
 # Log database connection details (sanitized)
 echo "Attempting to connect to database..."
-echo "DATABASE_URL: ${DATABASE_URL//:*@/:****@}"
+if [ -n "$DATABASE_URL" ]; then
+  echo "DATABASE_URL is set"
+  echo "DATABASE_URL: ${DATABASE_URL//:*@/:****@}"
+else
+  echo "ERROR: DATABASE_URL is not set"
+fi
 
 # Test database connection
 if [ -z "$DATABASE_URL" ]; then

@@ -1,9 +1,21 @@
-#!/bin/sh
+#!/bin/bash
+
+# Enable debugging
+set -x
 
 # Maximum number of retries for database connection
 MAX_RETRIES=30
 RETRY_INTERVAL=2
 COUNT=0
+
+# Print shell version for debugging
+echo "Shell version: $BASH_VERSION"
+
+# Print environment info (sanitized)
+echo "NODE_ENV: $NODE_ENV"
+echo "Working directory: $(pwd)"
+echo "Directory listing:"
+ls -la
 
 # Wait for database to be available
 echo "Waiting for database to be available..."
