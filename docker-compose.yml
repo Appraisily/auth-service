@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - /var/run/postgresql:/var/run/postgresql
+    environment:
+      POSTGRES_USER: auth-app-user
+      POSTGRES_PASSWORD: ${DB_AUTH_USER_PASSWORD}
+      POSTGRES_DB: auth_db
+    ports:
+      - "5432:5432"
+    networks:
+      - auth-network
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgresql://auth-app-user:${DB_AUTH_USER_PASSWORD}@localhost:5432/auth_db?host=/var/run/postgresql
+      - JWT_SECRET=your_jwt_secret_here
+      - JWT_EXPIRES_IN=7d
+      - REFRESH_TOKEN_SECRET=your_refresh_token_secret_here
+      - REFRESH_TOKEN_EXPIRES_IN=30d
+      - CORS_ORIGIN=http://localhost:3000
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/run/postgresql:/var/run/postgresql
+    networks:
+      - auth-network
+
+networks:
+  auth-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

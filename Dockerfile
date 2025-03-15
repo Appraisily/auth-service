@@ -24,6 +24,9 @@ RUN npm run build
 # Make scripts executable
 RUN chmod +x ./scripts/*.sh
 
+# Create directory for PostgreSQL socket
+RUN mkdir -p /var/run/postgresql
+
 # Expose the port
 EXPOSE 8080
 

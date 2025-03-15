@@ -7,6 +7,8 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // Supports connection via Unix socket with:
+  // postgresql://username:password@localhost:5432/database?host=/var/run/postgresql
 }
 
 model User {

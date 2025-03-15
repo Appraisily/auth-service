@@ -42,6 +42,22 @@ This service handles authentication and user management for Appraisily. It is de
    npm run dev
    ```
 
+## Development with Docker Compose
+
+You can also use Docker Compose to run the service with a local PostgreSQL database connected via Unix socket:
+
+1. Start the services:
+   ```
+   docker-compose up
+   ```
+
+2. The service will be available at http://localhost:8080
+
+3. To stop the services:
+   ```
+   docker-compose down
+   ```
+
 ## Deployment to Google Cloud Run
 
 1. Build the Docker image:
@@ -71,11 +87,27 @@ This service handles authentication and user management for Appraisily. It is de
 
 ## Database Setup
 
-This service uses PostgreSQL as the database. For Cloud Run deployment, you can connect to a Cloud SQL instance or other PostgreSQL database:
+This service uses PostgreSQL as the database. You have two options for database connections:
 
-1. Create a PostgreSQL instance
+### Option 1: URL Connection (for Cloud Run deployment)
+
+1. Create a PostgreSQL instance (see CLOUD_DB_SETUP.md for detailed instructions)
 2. Create a database named `auth_db`
-3. Provide the connection URL in the environment variables
+3. Provide the connection URL in the environment variables:
+   ```
+   DATABASE_URL=postgresql://username:password@host:port/auth_db?schema=public
+   ```
+
+### Option 2: Unix Socket Connection (for local development or container deployment)
+
+1. Set up a PostgreSQL instance that exposes a Unix socket
+2. Mount the socket directory in your container
+3. Configure the DATABASE_URL with the Unix socket path:
+   ```
+   DATABASE_URL=postgresql://username:password@localhost:5432/auth_db?host=/var/run/postgresql
+   ```
+   
+The Docker Compose configuration in this repository demonstrates the Unix socket approach.
 
 ## API Endpoints
 

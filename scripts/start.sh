@@ -16,20 +16,38 @@ while [ $COUNT -lt $MAX_RETRIES ]; do
     continue
   fi
 
-  # Extract connection details from DATABASE_URL
-  DB_USER=$(echo $DATABASE_URL | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
-  DB_HOST=$(echo $DATABASE_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
-  DB_PORT=$(echo $DATABASE_URL | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
-  
-  # Try connecting to database
-  export PGPASSWORD=$(echo $DATABASE_URL | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
-  if psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d postgres -c '\l' > /dev/null 2>&1; then
-    echo "Database connection successful"
-    break
+  # Check if using Unix socket connection
+  if echo "$DATABASE_URL" | grep -q "host=/var/run/postgresql"; then
+    # Extract username and database name for Unix socket connection
+    DB_USER=$(echo $DATABASE_URL | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
+    DB_NAME=$(echo $DATABASE_URL | sed -n 's/.*\/\([^?]*\).*/\1/p')
+    
+    # Try connecting to database using Unix socket
+    export PGPASSWORD=$(echo $DATABASE_URL | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
+    if psql -h /var/run/postgresql -U $DB_USER -d postgres -c '\l' > /dev/null 2>&1; then
+      echo "Database connection successful via Unix socket"
+      break
+    else
+      echo "Unix socket database not available yet, retrying in $RETRY_INTERVAL seconds... (Attempt $COUNT/$MAX_RETRIES)"
+      sleep $RETRY_INTERVAL
+      COUNT=$((COUNT+1))
+    fi
   else
-    echo "Database not available yet, retrying in $RETRY_INTERVAL seconds... (Attempt $COUNT/$MAX_RETRIES)"
-    sleep $RETRY_INTERVAL
-    COUNT=$((COUNT+1))
+    # Extract connection details for TCP connection
+    DB_USER=$(echo $DATABASE_URL | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
+    DB_HOST=$(echo $DATABASE_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
+    DB_PORT=$(echo $DATABASE_URL | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
+    
+    # Try connecting to database
+    export PGPASSWORD=$(echo $DATABASE_URL | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
+    if psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d postgres -c '\l' > /dev/null 2>&1; then
+      echo "Database connection successful via TCP"
+      break
+    else
+      echo "TCP database not available yet, retrying in $RETRY_INTERVAL seconds... (Attempt $COUNT/$MAX_RETRIES)"
+      sleep $RETRY_INTERVAL
+      COUNT=$((COUNT+1))
+    fi
   fi
 done
 

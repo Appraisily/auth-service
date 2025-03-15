@@ -11,22 +11,41 @@ if [ -z "$DATABASE_URL" ]; then
     exit 1
 fi
 
-# Extract connection details from DATABASE_URL
-# Format: postgresql://username:password@host:port/database
-DB_USER=$(echo $DATABASE_URL | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
-DB_HOST=$(echo $DATABASE_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
-DB_PORT=$(echo $DATABASE_URL | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
-DB_NAME=$(echo $DATABASE_URL | sed -n 's/.*\/\([^?]*\).*/\1/p')
+# Check if using Unix socket connection
+if echo "$DATABASE_URL" | grep -q "host=/var/run/postgresql"; then
+    # Extract connection details for Unix socket
+    DB_USER=$(echo $DATABASE_URL | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
+    DB_NAME=$(echo $DATABASE_URL | sed -n 's/.*\/\([^?]*\).*/\1/p')
+    SOCKET_PATH="/var/run/postgresql"
 
-echo "Testing database connection to $DB_HOST:$DB_PORT as $DB_USER..."
-
-# Try a simple database connection
-export PGPASSWORD=$(echo $DATABASE_URL | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
-if psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d postgres -c '\l' > /dev/null 2>&1; then
-    echo "Database connection successful"
+    echo "Testing database connection via Unix socket $SOCKET_PATH as $DB_USER..."
+    
+    # Try a simple database connection via Unix socket
+    export PGPASSWORD=$(echo $DATABASE_URL | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
+    if psql -h $SOCKET_PATH -U $DB_USER -d postgres -c '\l' > /dev/null 2>&1; then
+        echo "Database connection via Unix socket successful"
+    else
+        echo "ERROR: Failed to connect to database via Unix socket. Check socket path and credentials."
+        # Continue execution - the application will handle connection errors
+    fi
 else
-    echo "ERROR: Failed to connect to database. Check credentials and network connectivity."
-    # Continue execution - the application will handle connection errors
+    # Extract connection details from DATABASE_URL for TCP connection
+    # Format: postgresql://username:password@host:port/database
+    DB_USER=$(echo $DATABASE_URL | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
+    DB_HOST=$(echo $DATABASE_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
+    DB_PORT=$(echo $DATABASE_URL | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
+    DB_NAME=$(echo $DATABASE_URL | sed -n 's/.*\/\([^?]*\).*/\1/p')
+
+    echo "Testing database connection to $DB_HOST:$DB_PORT as $DB_USER..."
+
+    # Try a simple database connection via TCP
+    export PGPASSWORD=$(echo $DATABASE_URL | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
+    if psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d postgres -c '\l' > /dev/null 2>&1; then
+        echo "Database connection successful"
+    else
+        echo "ERROR: Failed to connect to database. Check credentials and network connectivity."
+        # Continue execution - the application will handle connection errors
+    fi
 fi
 
 # Apply migrations
