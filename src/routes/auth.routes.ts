@@ -6,29 +6,33 @@ import {
   registerValidation,
   loginValidation,
   passwordResetRequestValidation,
+  passwordResetValidation,
+  updateProfileValidation,
+  deleteAccountValidation,
 } from '../middleware/validation.middleware';
 
 const router = Router();
 
-// POST /api/auth/register - Register a new user
+// Public routes
 router.post('/register', registerValidation, authController.register);
 
-// POST /api/auth/login - Login user
 router.post('/login', loginValidation, authController.login);
 
-// GET /api/auth/verify-email/:token - Verify email with token
 router.get('/verify-email/:token', authController.verifyEmail);
 
-// POST /api/auth/reset-password - Request password reset
-router.post('/reset-password', passwordResetRequestValidation, authController.requestPasswordReset);
+router.post('/reset-password-request', passwordResetRequestValidation, authController.requestPasswordReset);
 
-// POST /api/auth/logout - Logout user
+router.post('/reset-password', passwordResetValidation, authController.resetPassword);
+
 router.post('/logout', authController.logout);
 
-// GET /api/auth/me - Get current user profile (protected route)
+router.post('/refresh-token', tokenController.refreshToken);
+
+// Protected routes (require authentication)
 router.get('/me', authenticate, authController.getCurrentUser);
 
-// POST /api/auth/refresh-token - Refresh access token
-router.post('/refresh-token', tokenController.refreshToken);
+router.put('/me', authenticate, updateProfileValidation, authController.updateProfile);
+
+router.delete('/me', authenticate, deleteAccountValidation, authController.deleteAccount);
 
 export default router;
