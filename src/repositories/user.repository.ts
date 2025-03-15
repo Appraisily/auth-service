@@ -7,15 +7,13 @@ export type CreateUserData = {
   password: string;
   firstName?: string;
   lastName?: string;
-  verificationToken?: string;
+  isEmailVerified: boolean;
 };
 
 export type UpdateUserData = {
   firstName?: string;
   lastName?: string;
   password?: string;
-  isEmailVerified?: boolean;
-  verificationToken?: string | null;
   resetToken?: string | null;
   resetTokenExpiry?: Date | null;
 };

@@ -18,8 +18,6 @@ router.post('/register', registerValidation, authController.register);
 
 router.post('/login', loginValidation, authController.login);
 
-router.get('/verify-email/:token', authController.verifyEmail);
-
 router.post('/reset-password-request', passwordResetRequestValidation, authController.requestPasswordReset);
 
 router.post('/reset-password', passwordResetValidation, authController.resetPassword);

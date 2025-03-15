@@ -10,6 +10,32 @@ import {
 import { generateToken, generateRefreshToken } from '../utils/jwt';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/email';
 import logger from '../utils/logger';
+import { PubSub } from '@google-cloud/pubsub';
+import { PubSubService } from '../services/pubsub.service';
+
+interface ResetPasswordRequestMessage {
+  crmProcess: 'resetPasswordRequest';
+  customer: {
+    email: string;
+  };
+  token: string;
+  metadata: {
+    timestamp: number;
+  };
+}
+
+interface NewRegistrationEmailMessage {
+  crmProcess: 'newRegistrationEmail';
+  customer: {
+    email: string;
+  };
+  metadata: {
+    timestamp: number;
+  };
+}
+
+const pubsub = new PubSub();
+const pubSubService = new PubSubService();
 
 // Register a new user
 export const register = async (req: Request, res: Response): Promise<Response> => {
@@ -28,30 +54,38 @@ export const register = async (req: Request, res: Response): Promise<Response> =
       return res.status(409).json({ message: 'User with this email already exists' });
     }
 
-    // Generate verification token
-    const verificationToken = generateVerificationToken();
-
     // Hash the password
     const hashedPassword = await hashPassword(password);
 
-    // Create the user
+    // Create the user (removed verification token)
     const user = await userRepository.createUser({
       email,
       password: hashedPassword,
       firstName,
       lastName,
-      verificationToken,
+      isEmailVerified: true, // Set to true by default since we're not verifying
     });
 
-    // Send verification email
-    await sendVerificationEmail(email, verificationToken);
+    // Create CRM notification with correct format
+    const message: NewRegistrationEmailMessage = {
+      crmProcess: 'newRegistrationEmail',
+      customer: {
+        email: user.email
+      },
+      metadata: {
+        timestamp: Date.now()
+      }
+    };
 
-    // Don't return password and verification token
-    const { password: _, verificationToken: __, ...userWithoutSensitiveInfo } = user;
+    // Publish to PubSub
+    await pubSubService.publishMessage(message);
+
+    // Don't return password in response
+    const { password: _, ...userWithoutPassword } = user;
 
     return res.status(201).json({
       message: 'User registered successfully',
-      user: userWithoutSensitiveInfo,
+      user: userWithoutPassword,
     });
   } catch (error) {
     logger.error('Registration error', { error });
@@ -126,57 +160,51 @@ export const login = async (req: Request, res: Response): Promise<Response> => {
   }
 };
 
-// Verify email
-export const verifyEmail = async (req: Request, res: Response): Promise<Response> => {
-  try {
-    const { token } = req.params;
-
-    // Find user by verification token
-    const user = await userRepository.findUserByVerificationToken(token);
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid or expired verification token' });
-    }
-
-    // Update user to mark email as verified and remove verification token
-    await userRepository.updateUser(user.id, {
-      isEmailVerified: true,
-      verificationToken: null
-    });
-
-    return res.status(200).json({ message: 'Email verified successfully' });
-  } catch (error) {
-    logger.error('Email verification error', { error });
-    return res.status(500).json({ message: 'Internal server error' });
-  }
-};
-
 // Request password reset
 export const requestPasswordReset = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const { email } = req.body;
-
-    // Find the user by email
-    const user = await userRepository.findUserByEmail(email);
-    if (!user) {
-      // Security: Don't reveal if email exists or not
-      return res.status(200).json({ message: 'If an account with that email exists, a password reset link has been sent' });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
 
-    // Generate password reset token
-    const resetToken = generatePasswordResetToken();
+    const { email } = req.body;
+    const user = await userRepository.findUserByEmail(email);
     
-    // Set token expiry (1 hour from now)
-    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000);
+    if (user) {
+      // Generate reset token
+      const resetToken = generatePasswordResetToken();
+      const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000);
 
-    // Update user with reset token and expiry
-    await userRepository.updateUser(user.id, {
-      resetToken,
-      resetTokenExpiry
-    });
+      // Update user with reset token
+      await userRepository.updateUser(user.id, {
+        resetToken,
+        resetTokenExpiry
+      });
 
-    // Send password reset email
-    await sendPasswordResetEmail(email, resetToken);
+      // Prepare message for CRM
+      const message: ResetPasswordRequestMessage = {
+        crmProcess: 'resetPasswordRequest',
+        customer: {
+          email: user.email
+        },
+        token: resetToken,
+        metadata: {
+          timestamp: Date.now()
+        }
+      };
 
+      // Publish to PubSub
+      const subscriptionName = process.env.PUBSUB_SUBSCRIPTION_NAME;
+      if (!subscriptionName) {
+        throw new Error('PUBSUB_SUBSCRIPTION_NAME environment variable is not set');
+      }
+
+      const dataBuffer = Buffer.from(JSON.stringify(message));
+      await pubsub.topic(subscriptionName).publish(dataBuffer);
+    }
+
+    // Always return same message whether user exists or not
     return res.status(200).json({ 
       message: 'If an account with that email exists, a password reset link has been sent' 
     });
