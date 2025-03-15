@@ -22,8 +22,9 @@ services:
     depends_on:
       - db
     environment:
-      - DATABASE_URL=postgresql://auth-app-user:${DB_AUTH_USER_PASSWORD}@localhost:5432/auth_db?host=/var/run/postgresql
-      - JWT_SECRET=your_jwt_secret_here
+      - DATABASE_URL=postgresql://auth-app-user:${DB_AUTH_USER_PASSWORD}@localhost:5432/auth_db?host=/cloudsql/civil-forge-403609:us-central1:auth-db-instance
+      - INSTANCE_CONNECTION_NAME=civil-forge-403609:us-central1:auth-db-instance
+      - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRES_IN=7d
       - REFRESH_TOKEN_SECRET=your_refresh_token_secret_here
       - REFRESH_TOKEN_EXPIRES_IN=30d
@@ -32,6 +33,7 @@ services:
       - "8080:8080"
     volumes:
       - /var/run/postgresql:/var/run/postgresql
+      - /cloudsql:/cloudsql
     networks:
       - auth-network
 

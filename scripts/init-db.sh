@@ -11,8 +11,34 @@ if [ -z "$DATABASE_URL" ]; then
     exit 1
 fi
 
-# Check if using Unix socket connection
-if echo "$DATABASE_URL" | grep -q "host=/var/run/postgresql"; then
+# Check for Cloud SQL socket connection
+if echo "$DATABASE_URL" | grep -q "host=/cloudsql"; then
+    # Extract connection details for Cloud SQL Unix socket
+    DB_USER=$(echo $DATABASE_URL | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
+    DB_NAME=$(echo $DATABASE_URL | sed -n 's/.*\/\([^?]*\).*/\1/p')
+    
+    # Get socket path from DATABASE_URL or use INSTANCE_CONNECTION_NAME
+    if echo "$DATABASE_URL" | grep -q "host=/cloudsql/"; then
+        SOCKET_PATH=$(echo $DATABASE_URL | sed -n 's/.*host=\([^&]*\).*/\1/p')
+    elif [ -n "$INSTANCE_CONNECTION_NAME" ]; then
+        SOCKET_PATH="/cloudsql/$INSTANCE_CONNECTION_NAME"
+    else
+        echo "ERROR: Neither socket path in DATABASE_URL nor INSTANCE_CONNECTION_NAME is set"
+        exit 1
+    fi
+
+    echo "Testing database connection via Cloud SQL socket $SOCKET_PATH as $DB_USER..."
+    
+    # Try a simple database connection via Cloud SQL socket
+    export PGPASSWORD=$(echo $DATABASE_URL | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
+    if psql -h "$SOCKET_PATH" -U $DB_USER -d postgres -c '\l' > /dev/null 2>&1; then
+        echo "Database connection via Cloud SQL socket successful"
+    else
+        echo "ERROR: Failed to connect to database via Cloud SQL socket. Check socket path and credentials."
+        # Continue execution - the application will handle connection errors
+    fi
+# Check for regular Unix socket connection
+elif echo "$DATABASE_URL" | grep -q "host=/var/run/postgresql"; then
     # Extract connection details for Unix socket
     DB_USER=$(echo $DATABASE_URL | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
     DB_NAME=$(echo $DATABASE_URL | sed -n 's/.*\/\([^?]*\).*/\1/p')
