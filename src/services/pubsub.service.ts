@@ -11,6 +11,16 @@ interface NewRegistrationEmailMessage {
   };
 }
 
+interface ResetPasswordRequestMessage {
+  crmProcess: 'resetPasswordRequest';
+  customer: {
+    email: string;
+  };
+  metadata: {
+    timestamp: number;
+  };
+}
+
 type PubSubMessage = NewRegistrationEmailMessage | ResetPasswordRequestMessage;
 
 export class PubSubService {

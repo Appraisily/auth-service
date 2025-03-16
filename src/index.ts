@@ -7,6 +7,7 @@ import { PrismaClient } from '@prisma/client';
 import authRoutes from './routes/auth.routes';
 import debugRoutes from './routes/debug.routes';
 import logger from './utils/logger';
+import { testDatabaseConnection } from './utils/database';
 
 // Load environment variables
 dotenv.config();
