@@ -10,16 +10,8 @@ export const registerValidation = [
     .normalizeEmail(),
   
   body('password')
-    .isLength({ min: 8 })
-    .withMessage('Password must be at least 8 characters long')
-    .matches(/[A-Z]/)
-    .withMessage('Password must contain at least one uppercase letter')
-    .matches(/[a-z]/)
-    .withMessage('Password must contain at least one lowercase letter')
-    .matches(/[0-9]/)
-    .withMessage('Password must contain at least one number')
-    .matches(/[!@#$%^&*(),.?":{}|<>]/)
-    .withMessage('Password must contain at least one special character'),
+    .isLength({ min: 6 })
+    .withMessage('Password must be at least 6 characters long'),
   
   body('confirmPassword')
     .custom((value, { req }) => {
@@ -75,16 +67,8 @@ export const passwordResetValidation = [
     .withMessage('Token is required'),
   
   body('password')
-    .isLength({ min: 8 })
-    .withMessage('Password must be at least 8 characters long')
-    .matches(/[A-Z]/)
-    .withMessage('Password must contain at least one uppercase letter')
-    .matches(/[a-z]/)
-    .withMessage('Password must contain at least one lowercase letter')
-    .matches(/[0-9]/)
-    .withMessage('Password must contain at least one number')
-    .matches(/[!@#$%^&*(),.?":{}|<>]/)
-    .withMessage('Password must contain at least one special character'),
+    .isLength({ min: 6 })
+    .withMessage('Password must be at least 6 characters long'),
   
   body('confirmPassword')
     .custom((value, { req }) => {
@@ -122,16 +106,8 @@ export const updateProfileValidation = [
   
   body('newPassword')
     .optional()
-    .isLength({ min: 8 })
-    .withMessage('New password must be at least 8 characters long')
-    .matches(/[A-Z]/)
-    .withMessage('New password must contain at least one uppercase letter')
-    .matches(/[a-z]/)
-    .withMessage('New password must contain at least one lowercase letter')
-    .matches(/[0-9]/)
-    .withMessage('New password must contain at least one number')
-    .matches(/[!@#$%^&*(),.?":{}|<>]/)
-    .withMessage('New password must contain at least one special character'),
+    .isLength({ min: 6 })
+    .withMessage('New password must be at least 6 characters long'),
 ];
 
 /**

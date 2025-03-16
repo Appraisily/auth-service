@@ -18,17 +18,44 @@ const pubsub = new PubSub();
 // Register a new user
 export const register = async (req: Request, res: Response): Promise<Response> => {
   try {
+    logger.info('Registration attempt', { 
+      email: req.body.email,
+      hasFirstName: !!req.body.firstName,
+      hasLastName: !!req.body.lastName,
+      hasPassword: !!req.body.password
+    });
+
     // Check validation results
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      logger.warn('Registration validation failed', { 
+        errors: errors.array(),
+        email: req.body.email 
+      });
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { email, password, firstName, lastName } = req.body;
 
+    // Log required fields
+    if (!email || !password) {
+      logger.warn('Missing required fields', {
+        hasEmail: !!email,
+        hasPassword: !!password
+      });
+      return res.status(400).json({ 
+        message: 'Missing required fields',
+        errors: [
+          ...(!email ? [{ msg: 'Email is required', param: 'email' }] : []),
+          ...(!password ? [{ msg: 'Password is required', param: 'password' }] : [])
+        ]
+      });
+    }
+
     // Check if user already exists
     const existingUser = await userRepository.findUserByEmail(email);
     if (existingUser) {
+      logger.warn('User already exists', { email });
       return res.status(409).json({ message: 'User with this email already exists' });
     }
 
@@ -44,6 +71,13 @@ export const register = async (req: Request, res: Response): Promise<Response> =
       isEmailVerified: true, // Set to true by default since we're not verifying
     });
 
+    logger.info('User created successfully', { 
+      userId: user.id,
+      email: user.email,
+      hasFirstName: !!user.firstName,
+      hasLastName: !!user.lastName
+    });
+
     // Create CRM notification with correct format
     const message: NewRegistrationEmailMessage = {
       crmProcess: 'newRegistrationEmail',
@@ -56,17 +90,43 @@ export const register = async (req: Request, res: Response): Promise<Response> =
     };
 
     // Publish to PubSub
-    await pubSubService.publishMessage(message);
+    try {
+      await pubSubService.publishMessage(message);
+      logger.info('CRM notification sent successfully', { 
+        userId: user.id,
+        email: user.email 
+      });
+    } catch (pubsubError) {
+      logger.error('Failed to send CRM notification', { 
+        error: pubsubError,
+        userId: user.id,
+        email: user.email 
+      });
+      // Continue with registration even if PubSub fails
+    }
 
     // Don't return password in response
     const { password: _, ...userWithoutPassword } = user;
+
+    logger.info('Registration completed successfully', { 
+      userId: user.id,
+      email: user.email 
+    });
 
     return res.status(201).json({
       message: 'User registered successfully',
       user: userWithoutPassword,
     });
   } catch (error) {
-    logger.error('Registration error', { error });
+    logger.error('Registration error', { 
+      error,
+      requestBody: {
+        email: req.body.email,
+        hasPassword: !!req.body.password,
+        hasFirstName: !!req.body.firstName,
+        hasLastName: !!req.body.lastName
+      }
+    });
     return res.status(500).json({ message: 'Internal server error' });
   }
 };
