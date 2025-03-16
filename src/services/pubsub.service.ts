@@ -1,4 +1,5 @@
 import { PubSub } from '@google-cloud/pubsub';
+import logger from '../utils/logger';
 
 interface NewRegistrationEmailMessage {
   crmProcess: 'newRegistrationEmail';  // lowercase 'n' as specified
@@ -12,7 +13,7 @@ interface NewRegistrationEmailMessage {
 
 type PubSubMessage = NewRegistrationEmailMessage | ResetPasswordRequestMessage;
 
-class PubSubService {
+export class PubSubService {
   private pubsub: PubSub;
   private subscriptionName: string;
 
@@ -41,4 +42,5 @@ class PubSubService {
   }
 }
 
+// Export a singleton instance
 export const pubSubService = new PubSubService(); 
