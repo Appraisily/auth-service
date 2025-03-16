@@ -1,7 +1,7 @@
 import { PubSub } from '@google-cloud/pubsub';
 import logger from '../utils/logger';
 
-interface NewRegistrationEmailMessage {
+export interface NewRegistrationEmailMessage {
   crmProcess: 'newRegistrationEmail';  // lowercase 'n' as specified
   customer: {
     email: string;
@@ -11,7 +11,7 @@ interface NewRegistrationEmailMessage {
   };
 }
 
-interface ResetPasswordRequestMessage {
+export interface ResetPasswordRequestMessage {
   crmProcess: 'resetPasswordRequest';
   customer: {
     email: string;
@@ -19,9 +19,10 @@ interface ResetPasswordRequestMessage {
   metadata: {
     timestamp: number;
   };
+  token: string;
 }
 
-type PubSubMessage = NewRegistrationEmailMessage | ResetPasswordRequestMessage;
+export type PubSubMessage = NewRegistrationEmailMessage | ResetPasswordRequestMessage;
 
 export class PubSubService {
   private pubsub: PubSub;

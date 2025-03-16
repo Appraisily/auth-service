@@ -11,28 +11,7 @@ import { generateToken, generateRefreshToken } from '../utils/jwt';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/email';
 import logger from '../utils/logger';
 import { PubSub } from '@google-cloud/pubsub';
-import { pubSubService } from '../services/pubsub.service';
-
-interface ResetPasswordRequestMessage {
-  crmProcess: 'resetPasswordRequest';
-  customer: {
-    email: string;
-  };
-  token: string;
-  metadata: {
-    timestamp: number;
-  };
-}
-
-interface NewRegistrationEmailMessage {
-  crmProcess: 'newRegistrationEmail';
-  customer: {
-    email: string;
-  };
-  metadata: {
-    timestamp: number;
-  };
-}
+import { pubSubService, NewRegistrationEmailMessage, ResetPasswordRequestMessage } from '../services/pubsub.service';
 
 const pubsub = new PubSub();
 
@@ -66,7 +45,7 @@ export const register = async (req: Request, res: Response): Promise<Response> =
     });
 
     // Create CRM notification with correct format
-    const message = {
+    const message: NewRegistrationEmailMessage = {
       crmProcess: 'newRegistrationEmail',
       customer: {
         email: user.email
