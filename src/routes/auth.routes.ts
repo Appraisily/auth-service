@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import passport from 'passport';
 import * as authController from '../controllers/auth.controller';
 import * as tokenController from '../controllers/token.controller';
 import { authenticate } from '../middleware/auth.middleware';
@@ -22,9 +23,18 @@ router.post('/reset-password-request', passwordResetRequestValidation, authContr
 
 router.post('/reset-password', passwordResetValidation, authController.resetPassword);
 
-router.post('/logout', authController.logout);
+// Google OAuth routes
+router.get('/google', passport.authenticate('google', {
+  scope: ['profile', 'email']
+}));
 
-router.post('/refresh-token', tokenController.refreshToken);
+router.get('/google/callback', 
+  passport.authenticate('google', { 
+    failureRedirect: '/login',
+    session: false 
+  }),
+  authController.googleCallback
+);
 
 // Protected routes (require authentication)
 router.get('/me', authenticate, authController.getCurrentUser);
@@ -32,5 +42,9 @@ router.get('/me', authenticate, authController.getCurrentUser);
 router.put('/me', authenticate, updateProfileValidation, authController.updateProfile);
 
 router.delete('/me', authenticate, deleteAccountValidation, authController.deleteAccount);
+
+router.post('/refresh-token', tokenController.refreshToken);
+
+router.post('/logout', authController.logout);
 
 export default router;

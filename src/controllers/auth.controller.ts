@@ -294,13 +294,68 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<Respo
 // Complete password reset
 export const resetPassword = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const { token, password } = req.body;
+    logger.info('Password reset attempt', {
+      hasToken: !!req.body.token,
+      hasPassword: !!req.body.password,
+      hasConfirmPassword: !!req.body.confirmPassword
+    });
+
+    // Check validation results
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      logger.warn('Password reset validation failed', {
+        errors: errors.array()
+      });
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { token, password, confirmPassword } = req.body;
+
+    // Log required fields
+    if (!token || !password || !confirmPassword) {
+      logger.warn('Missing required fields for password reset', {
+        hasToken: !!token,
+        hasPassword: !!password,
+        hasConfirmPassword: !!confirmPassword
+      });
+      return res.status(400).json({
+        message: 'Missing required fields',
+        errors: [
+          ...(!token ? [{ msg: 'Reset token is required', param: 'token' }] : []),
+          ...(!password ? [{ msg: 'New password is required', param: 'password' }] : []),
+          ...(!confirmPassword ? [{ msg: 'Password confirmation is required', param: 'confirmPassword' }] : [])
+        ]
+      });
+    }
+
+    // Verify passwords match
+    if (password !== confirmPassword) {
+      logger.warn('Passwords do not match');
+      return res.status(400).json({
+        message: 'Validation failed',
+        errors: [{ msg: 'Passwords do not match', param: 'confirmPassword' }]
+      });
+    }
 
     // Find user by reset token
     const user = await userRepository.findUserByResetToken(token);
     if (!user) {
+      logger.warn('Invalid or expired reset token attempt');
       return res.status(400).json({ message: 'Invalid or expired reset token' });
     }
+
+    // Additional check for token expiry
+    if (!user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
+      logger.warn('Reset token has expired', {
+        tokenExpiry: user.resetTokenExpiry
+      });
+      return res.status(400).json({ message: 'Reset token has expired' });
+    }
+
+    logger.info('Valid reset token found', {
+      userId: user.id,
+      email: user.email
+    });
 
     // Hash the new password
     const hashedPassword = await hashPassword(password);
@@ -312,9 +367,21 @@ export const resetPassword = async (req: Request, res: Response): Promise<Respon
       resetTokenExpiry: null
     });
 
+    logger.info('Password reset completed successfully', {
+      userId: user.id,
+      email: user.email
+    });
+
     return res.status(200).json({ message: 'Password reset successful' });
   } catch (error) {
-    logger.error('Password reset error', { error });
+    logger.error('Password reset error', {
+      error,
+      requestBody: {
+        hasToken: !!req.body.token,
+        hasPassword: !!req.body.password,
+        hasConfirmPassword: !!req.body.confirmPassword
+      }
+    });
     return res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -397,5 +464,74 @@ export const deleteAccount = async (req: Request, res: Response): Promise<Respon
   } catch (error) {
     logger.error('Delete account error', { error });
     return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Google OAuth callback
+export const googleCallback = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const user = req.user as any;
+    
+    if (!user) {
+      logger.error('Google callback: No user data');
+      return res.status(401).json({ message: 'Authentication failed' });
+    }
+
+    // Generate tokens
+    const token = generateToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    // Set cookies
+    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 1 day
+    const refreshTokenExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      expires: tokenExpiry,
+      sameSite: 'lax'
+    });
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      expires: refreshTokenExpiry,
+      sameSite: 'lax',
+      path: '/api/auth/refresh-token'
+    });
+
+    // Create CRM notification
+    const message: NewRegistrationEmailMessage = {
+      crmProcess: 'newRegistrationEmail',
+      customer: {
+        email: user.email
+      },
+      metadata: {
+        timestamp: Date.now()
+      }
+    };
+
+    // Publish to PubSub if this is a new user
+    try {
+      await pubSubService.publishMessage(message);
+      logger.info('CRM notification sent successfully for Google auth user', { 
+        userId: user.id,
+        email: user.email 
+      });
+    } catch (pubsubError) {
+      logger.error('Failed to send CRM notification for Google auth user', { 
+        error: pubsubError,
+        userId: user.id,
+        email: user.email 
+      });
+    }
+
+    // Redirect to frontend with success
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    return res.redirect(`${frontendUrl}/auth/success`);
+  } catch (error) {
+    logger.error('Google callback error', { error });
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    return res.redirect(`${frontendUrl}/auth/error`);
   }
 };

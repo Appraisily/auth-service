@@ -8,6 +8,8 @@ import authRoutes from './routes/auth.routes';
 import debugRoutes from './routes/debug.routes';
 import logger from './utils/logger';
 import { testDatabaseConnection } from './utils/database';
+import passport from 'passport';
+import './config/passport';
 
 // Load environment variables
 dotenv.config();
@@ -77,6 +79,9 @@ app.use(cors({
 app.use(helmet());
 app.use(express.json());
 app.use(cookieParser());
+
+// Initialize Passport
+app.use(passport.initialize());
 
 // Log all requests in development
 if (process.env.NODE_ENV !== 'production') {
