@@ -17,7 +17,7 @@ RUN npx prisma generate
 COPY . .
 
 # Build the application
-RUN npm run build
+RUN npx prisma generate && npm run build || (echo "Build failed. Check TypeScript errors." && exit 1)
 
 # Make scripts executable
 RUN chmod +x ./scripts/*.sh

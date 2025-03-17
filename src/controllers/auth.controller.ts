@@ -528,10 +528,12 @@ export const googleCallback = async (req: Request, res: Response): Promise<Respo
 
     // Redirect to frontend with success
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    return res.redirect(`${frontendUrl}/auth/success`);
+    res.redirect(`${frontendUrl}/auth/success`);
+    return res.status(302).end(); // This line will not be reached, but satisfies TypeScript
   } catch (error) {
     logger.error('Google callback error', { error });
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    return res.redirect(`${frontendUrl}/auth/error`);
+    res.redirect(`${frontendUrl}/auth/error`);
+    return res.status(302).end(); // This line will not be reached, but satisfies TypeScript
   }
 };
