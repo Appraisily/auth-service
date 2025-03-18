@@ -19,7 +19,7 @@ router.post('/register', registerValidation, authController.register);
 
 router.post('/login', loginValidation, authController.login);
 
-router.post('/reset-password-request', passwordResetRequestValidation, authController.requestPasswordReset);
+router.post('/request-reset-password', passwordResetRequestValidation, authController.requestPasswordReset);
 
 router.post('/reset-password', passwordResetValidation, authController.resetPassword);
 

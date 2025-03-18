@@ -54,8 +54,7 @@ export const loginValidation = [
 export const passwordResetRequestValidation = [
   body('email')
     .isEmail()
-    .withMessage('Please provide a valid email address')
-    .normalizeEmail(),
+    .withMessage('Valid email is required')
 ];
 
 /**
@@ -65,18 +64,20 @@ export const passwordResetValidation = [
   body('token')
     .notEmpty()
     .withMessage('Token is required'),
-  
   body('password')
+    .notEmpty()
+    .withMessage('New password is required')
     .isLength({ min: 6 })
     .withMessage('Password must be at least 6 characters long'),
-  
   body('confirmPassword')
+    .notEmpty()
+    .withMessage('Password confirmation is required')
     .custom((value, { req }) => {
       if (value !== req.body.password) {
         throw new Error('Passwords do not match');
       }
       return true;
-    }),
+    })
 ];
 
 /**
