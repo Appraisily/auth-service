@@ -500,29 +500,39 @@ export const googleCallback = async (req: Request, res: Response): Promise<Respo
       path: '/api/auth/refresh-token'
     });
 
-    // Create CRM notification
-    const message: NewRegistrationEmailMessage = {
-      crmProcess: 'newRegistrationEmail',
-      customer: {
-        email: user.email
-      },
-      metadata: {
-        timestamp: Date.now()
+    // Check if this is a new user from passport.js
+    const isNewUser = req.user && (req.user as any)._isNewUser;
+    
+    // Only publish to PubSub if this is a brand new user
+    if (isNewUser) {
+      // Create CRM notification
+      const message: NewRegistrationEmailMessage = {
+        crmProcess: 'newRegistrationEmail',
+        customer: {
+          email: user.email
+        },
+        metadata: {
+          timestamp: Date.now()
+        }
+      };
+  
+      try {
+        await pubSubService.publishMessage(message);
+        logger.info('CRM notification sent successfully for new Google auth user', { 
+          userId: user.id,
+          email: user.email 
+        });
+      } catch (pubsubError) {
+        logger.error('Failed to send CRM notification for new Google auth user', { 
+          error: pubsubError,
+          userId: user.id,
+          email: user.email 
+        });
       }
-    };
-
-    // Publish to PubSub if this is a new user
-    try {
-      await pubSubService.publishMessage(message);
-      logger.info('CRM notification sent successfully for Google auth user', { 
+    } else {
+      logger.info('Skipping CRM notification for existing Google auth user', {
         userId: user.id,
-        email: user.email 
-      });
-    } catch (pubsubError) {
-      logger.error('Failed to send CRM notification for Google auth user', { 
-        error: pubsubError,
-        userId: user.id,
-        email: user.email 
+        email: user.email
       });
     }
 

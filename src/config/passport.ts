@@ -77,7 +77,13 @@ passport.use(
           email: newUser.email
         });
 
-        return done(null, newUser);
+        // Mark this as a new user to avoid sending PubSub notifications for existing users
+        const userWithFlag = {
+          ...newUser,
+          _isNewUser: true
+        };
+
+        return done(null, userWithFlag);
       } catch (error) {
         logger.error('Google authentication error', { error });
         return done(error as Error);
