@@ -42,9 +42,12 @@ const PORT = process.env.PORT || 8080;
 // Define allowed origins
 const allowedOrigins = [
   'https://appraisily.com',
+  'https://www.appraisily.com',
   'https://*.appraisily.com',
   'https://*.netlify.app', // Allow all Netlify subdomains
-  'http://localhost:3000'  // Keep localhost for development
+  'http://localhost:3000',  // React dev server
+  'http://localhost:5173',  // Vite dev server
+  'http://127.0.0.1:5173'   // Alternative Vite local address
 ];
 
 // Configure CORS

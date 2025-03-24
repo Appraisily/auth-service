@@ -49,8 +49,7 @@ exports.loginValidation = [
 exports.passwordResetRequestValidation = [
     (0, express_validator_1.body)('email')
         .isEmail()
-        .withMessage('Please provide a valid email address')
-        .normalizeEmail(),
+        .withMessage('Valid email is required')
 ];
 /**
  * Validation rules for password reset (setting new password)
@@ -60,15 +59,19 @@ exports.passwordResetValidation = [
         .notEmpty()
         .withMessage('Token is required'),
     (0, express_validator_1.body)('password')
+        .notEmpty()
+        .withMessage('New password is required')
         .isLength({ min: 6 })
         .withMessage('Password must be at least 6 characters long'),
     (0, express_validator_1.body)('confirmPassword')
+        .notEmpty()
+        .withMessage('Password confirmation is required')
         .custom((value, { req }) => {
         if (value !== req.body.password) {
             throw new Error('Passwords do not match');
         }
         return true;
-    }),
+    })
 ];
 /**
  * Validation rules for updating user profile

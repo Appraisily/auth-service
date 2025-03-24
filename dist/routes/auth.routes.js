@@ -46,7 +46,7 @@ const router = (0, express_1.Router)();
 // Public routes
 router.post('/register', validation_middleware_1.registerValidation, authController.register);
 router.post('/login', validation_middleware_1.loginValidation, authController.login);
-router.post('/reset-password-request', validation_middleware_1.passwordResetRequestValidation, authController.requestPasswordReset);
+router.post('/request-reset-password', validation_middleware_1.passwordResetRequestValidation, authController.requestPasswordReset);
 router.post('/reset-password', validation_middleware_1.passwordResetValidation, authController.resetPassword);
 // Google OAuth routes
 router.get('/google', passport_1.default.authenticate('google', {
