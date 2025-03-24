@@ -65,16 +65,10 @@ export const passwordResetValidation = [
     .notEmpty()
     .withMessage('Token is required'),
   body('password')
-<<<<<<< HEAD
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long'),
-  
-=======
     .notEmpty()
     .withMessage('New password is required')
     .isLength({ min: 6 })
     .withMessage('Password must be at least 6 characters long'),
->>>>>>> 49fa86d09e991556c3109b7f5b30cecba1bc8358
   body('confirmPassword')
     .notEmpty()
     .withMessage('Password confirmation is required')
