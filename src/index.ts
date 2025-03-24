@@ -7,6 +7,9 @@ import { PrismaClient } from '@prisma/client';
 import authRoutes from './routes/auth.routes';
 import debugRoutes from './routes/debug.routes';
 import logger from './utils/logger';
+import { testDatabaseConnection } from './utils/database';
+import passport from 'passport';
+import './config/passport';
 
 // Load environment variables
 dotenv.config();
@@ -36,33 +39,49 @@ const prisma = new PrismaClient({
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Test database connection
-async function testDatabaseConnection() {
-  try {
-    // Try to query the database
-    await prisma.$queryRaw`SELECT 1`;
-    logger.info('Database connection successful');
-    return true;
-  } catch (error) {
-    logger.error('Database connection failed', { 
-      error,
-      message: (error as Error).message,
-      DATABASE_URL: process.env.DATABASE_URL ? 
-        process.env.DATABASE_URL.replace(/:[^:]*@/, ':****@') : 
-        'not configured'
+// Define allowed origins
+const allowedOrigins = [
+  'https://appraisily.com',
+  'https://*.appraisily.com',
+  'https://*.netlify.app', // Allow all Netlify subdomains
+  'http://localhost:3000'  // Keep localhost for development
+];
+
+// Configure CORS
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    // Check if the origin matches any of our allowed patterns
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (allowedOrigin.includes('*')) {
+        // Convert wildcard pattern to regex
+        const pattern = allowedOrigin.replace('*.', '.*\\.');
+        const regex = new RegExp(`^${pattern}$`);
+        return regex.test(origin);
+      }
+      return allowedOrigin === origin;
     });
-    return false;
-  }
-}
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true, // Allow credentials (cookies)
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Middleware
 app.use(helmet());
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'https://appraisily.com',
-  credentials: true,
-}));
 app.use(express.json());
 app.use(cookieParser());
+
+// Initialize Passport
+app.use(passport.initialize());
 
 // Log all requests in development
 if (process.env.NODE_ENV !== 'production') {

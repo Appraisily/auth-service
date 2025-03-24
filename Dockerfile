@@ -9,11 +9,15 @@ RUN apt-get update && apt-get install -y postgresql-client && apt-get clean
 COPY package*.json ./
 RUN npm install
 
-# Copy prisma files
+# Copy prisma files and generate client
 COPY prisma ./prisma/
+RUN npx prisma generate
 
 # Copy the rest of the application
 COPY . .
+
+# Build the application
+RUN npx prisma generate && npm run build || (echo "Build failed. Check TypeScript errors." && exit 1)
 
 # Make scripts executable
 RUN chmod +x ./scripts/*.sh
@@ -35,14 +39,8 @@ RUN echo '#!/bin/bash' > /app/docker-entrypoint.sh && \
     echo 'else' >> /app/docker-entrypoint.sh && \
     echo '  echo "WARNING: INSTANCE_CONNECTION_NAME is not set!"' >> /app/docker-entrypoint.sh && \
     echo 'fi' >> /app/docker-entrypoint.sh && \
-    echo 'echo "Current DATABASE_URL (sanitized):"' >> /app/docker-entrypoint.sh && \
-    echo 'echo "$DATABASE_URL" | sed "s/:[^:]*@/:****@/"' >> /app/docker-entrypoint.sh && \
-    echo 'echo "Running prisma generate..."' >> /app/docker-entrypoint.sh && \
-    echo 'npx prisma generate' >> /app/docker-entrypoint.sh && \
-    echo 'echo "Building application..."' >> /app/docker-entrypoint.sh && \
-    echo 'npm run build' >> /app/docker-entrypoint.sh && \
     echo 'echo "Starting application..."' >> /app/docker-entrypoint.sh && \
-    echo 'exec ./scripts/start.sh' >> /app/docker-entrypoint.sh && \
+    echo 'exec node dist/index.js' >> /app/docker-entrypoint.sh && \
     chmod +x /app/docker-entrypoint.sh
 
 # Expose the port
